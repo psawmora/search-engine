@@ -1,8 +1,7 @@
 package se;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.*;
+import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
@@ -34,6 +33,7 @@ public class QueryProcessor {
     }
 
     public void getUrlsForQuery(File queryFile) {
+        Map<String, String> indexResults = readIndexFile(indexFilePath);
         try (BufferedReader reader = new BufferedReader(new FileReader(queryFile))) {
             boolean isFileEnd = false;
             while (reader.ready() && !isFileEnd) {
@@ -41,7 +41,7 @@ public class QueryProcessor {
                 if (query == null) {
                     isFileEnd = true;
                 } else if (!query.isEmpty()) {
-                    getUrlsForQuery(query);
+                    getUrlsForQuery(query, indexResults);
                 }
             }
 
@@ -58,8 +58,10 @@ public class QueryProcessor {
      * @param query
      * @return
      */
-    public Map<String, Integer> getUrlsForQuery(String query) {
-        Map<String, String> indexResults = readIndexFile(indexFilePath);
+    public Map<String, Integer> getUrlsForQuery(String query, Map<String, String> indexResults) {
+        if (indexResults == null) {
+            indexResults = readIndexFile(indexFilePath);
+        }
         System.out.println("------------ Start - " + query + " -------------");
         Map<String, Integer> resultMap = searchForQuery(indexResults, query);
         System.out.println("------------ End - " + query + " -------------");
@@ -97,7 +99,8 @@ public class QueryProcessor {
         }
     }
 
-    private Map<String, String> readIndexFile(Path indexFilePath) {
+/*
+    private Map<String, String> readIndexFile2(Path indexFilePath) {
         Map<String, String> indexLines = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(new File(indexFilePath.toUri())))) {
             boolean isFileEnd = false;
@@ -116,8 +119,65 @@ public class QueryProcessor {
         }
         return indexLines;
     }
+*/
+
+    private Map<String, String> readIndexFile(Path indexFilePath) {
+        Map<String, String> indexLines = new HashMap<>();
+        final URI path = indexFilePath.toUri();
+        try (BufferedReader reader = new BufferedReader(new RandomFileReader(new File(path)))) {
+            boolean isFileEnd = false;
+            while (reader.ready() && !isFileEnd) {
+                String line = reader.readLine();
+                if (line == null) {
+                    isFileEnd = true;
+                } else if (!line.isEmpty()) {
+                    String[] split = line.split(">>");
+                    if (split.length > 1) indexLines.put(split[0], split[1]);
+                }
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error in reading file content. " + e);
+        }
+        return indexLines;
+    }
+
 
     public void setIndexFile(String indexFile) {
         this.indexFile = indexFile;
+    }
+
+    /**
+     * <p>
+     * Custom defined FileReader with RandomAccessFile as the underline file stream.
+     * </p>
+     */
+    private static class RandomFileReader extends FileReader {
+
+        RandomAccessFile randomAccessFile;
+
+        public RandomFileReader(File file) throws FileNotFoundException {
+            super(file);
+            randomAccessFile = new RandomAccessFile(file, "r");
+        }
+
+        @Override
+        public int read(char[] cbuf, int off, int len) throws IOException {
+            byte[] buff = new byte[cbuf.length];
+            int nRead = randomAccessFile.read(buff, off, len);
+            for (int i = 0; i < nRead; i++) {
+                cbuf[i] = (char) buff[i];
+            }
+            return nRead;
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                randomAccessFile.close();
+            } finally {
+
+            }
+        }
     }
 }
