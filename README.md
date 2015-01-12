@@ -8,6 +8,7 @@ s-engine - Executes a submitted query and outputs the result with their priority
 Dependencies
 -------------
 java 1.7
+Apache Maven 3
 
 How to Build
 --------------
