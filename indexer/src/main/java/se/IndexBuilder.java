@@ -52,6 +52,7 @@ public class IndexBuilder {
         // Get new data files if there's any.
         // If new data files are available, mark the index file as being processed.
         // Read the words.
+        long tStart = System.currentTimeMillis();
         List<File> updatedFileList = fileLoader.getUpdatedFileList();
         if (updatedFileList.size() > 0) {
             Map<String, String> indexLines = readIndexFile(indexFilePath);
@@ -61,6 +62,7 @@ public class IndexBuilder {
             }
             writeBackToIndexFile(indexFilePath, indexLines);
         }
+        System.out.println("Time taken to build the index file(ms) -> " + (System.currentTimeMillis() - tStart));
     }
 
     private void writeBackToIndexFile(Path indexFilePath, Map<String, String> indexLines) {

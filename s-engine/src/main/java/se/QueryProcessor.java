@@ -24,6 +24,8 @@ public class QueryProcessor {
 
     private Path indexFilePath;
 
+    private String answerFilePath;
+
     public void init() {
         String path = INDEX_FILE_BASE_PATH + INDEX_FILE_BASE_NAME;
         if (indexFile != null && !indexFile.isEmpty()) {
@@ -33,7 +35,9 @@ public class QueryProcessor {
     }
 
     public void getUrlsForQuery(File queryFile) {
+        long tStart = System.currentTimeMillis();
         Map<String, String> indexResults = readIndexFile(indexFilePath);
+        Map<String, Map<String, Integer>> queryResults = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(queryFile))) {
             boolean isFileEnd = false;
             while (reader.ready() && !isFileEnd) {
@@ -41,12 +45,15 @@ public class QueryProcessor {
                 if (query == null) {
                     isFileEnd = true;
                 } else if (!query.isEmpty()) {
-                    getUrlsForQuery(query, indexResults);
+                    Map<String, Integer> urlsForQuery = getUrlsForQuery(query, indexResults);
+                    queryResults.put(query, urlsForQuery);
                 }
             }
-
+            writeToAnswerFile(FileSystems.getDefault().getPath(answerFilePath), queryResults);
         } catch (Exception e) {
             System.out.println("Error in reading file content. " + e);
+        } finally {
+            System.out.println("Time take for querying(ms) -> " + (System.currentTimeMillis() - tStart));
         }
     }
 
@@ -58,7 +65,7 @@ public class QueryProcessor {
      * @param query
      * @return
      */
-    public Map<String, Integer> getUrlsForQuery(String query, Map<String, String> indexResults) {
+    private Map<String, Integer> getUrlsForQuery(String query, Map<String, String> indexResults) {
         if (indexResults == null) {
             indexResults = readIndexFile(indexFilePath);
         }
@@ -68,6 +75,40 @@ public class QueryProcessor {
         return resultMap;
     }
 
+    /**
+     * <p>
+     * Writes the query results to the answer file.
+     * </p>
+     *
+     * @param indexFilePath
+     * @param queryResults
+     */
+    private void writeToAnswerFile(Path indexFilePath, Map<String, Map<String, Integer>> queryResults) {
+        try (FileWriter writer = new FileWriter(indexFilePath.toString(), false)) {
+            for (Map.Entry<String, Map<String, Integer>> resultEntry : queryResults.entrySet()) {
+
+                writer.write("------------ Start - " + resultEntry.getKey() + " -------------");
+                for (Map.Entry<String, Integer> entry : resultEntry.getValue().entrySet()) {
+                    writer.write(entry.getKey() + " : Priority - " + entry.getValue() + "\n");
+                }
+                writer.write("\n\n");
+            }
+            writer.flush();
+        } catch (Exception e) {
+            System.out.println("Error in writing to index file. " + e);
+        }
+
+    }
+
+    /**
+     * <p>
+     * Search for a particular query and return the results.
+     * </p>
+     *
+     * @param indexResults
+     * @param query
+     * @return
+     */
     private Map<String, Integer> searchForQuery(Map<String, String> indexResults, String query) {
         String[] split = query.split(" ");
         List<String> contests = new ArrayList<>();
@@ -147,6 +188,10 @@ public class QueryProcessor {
         this.indexFile = indexFile;
     }
 
+    public void setAnswerFilePath(String answerFilePath) {
+        this.answerFilePath = answerFilePath;
+    }
+
     /**
      * <p>
      * Custom defined FileReader with RandomAccessFile as the underline file stream.
@@ -166,7 +211,7 @@ public class QueryProcessor {
             byte[] buff = new byte[cbuf.length];
             int nRead = randomAccessFile.read(buff, off, len);
             for (int i = 0; i < nRead; i++) {
-                cbuf[i] = (char) buff[i];
+                cbuf[i] = (char) buff[i]; // The character encoding is assumed to be an 8-bit encoding format.
             }
             return nRead;
         }
